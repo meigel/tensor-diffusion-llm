@@ -1,22 +1,11 @@
 """
 Mask policies for the diffusion sampler.
 
-Each policy defines how positions are selected for unmasking (or remasking)
-at a given diffusion step.
+Each policy defines two methods:
+  - select_remask(x, diagnostics, rng) → which observed positions to remask
+  - select_fill(x, dist, diagnostics, rng) → which MASK positions to fill
 
-A mask policy receives:
-  - The current state x
-  - The denoiser proposal distribution p_i(v) [shape (n, d)]
-  - Verifier diagnostics (violations, residuals)
-  - An optional RNG
-
-and returns a boolean array indicating which positions to act on.
-
-Policy types
-------------
-1. ConfidenceUnmaskPolicy — unmask positions with max confidence ≥ threshold
-2. RandomMaskPolicy — select a random fraction of masked positions
-3. AllMaskPolicy — unmask all masked positions in one step
+Base class provides defaults (no remask, fill all MASK).
 """
 
 from typing import Optional
@@ -30,36 +19,34 @@ from tdr.domains.base import VerifierDiagnostics
 class BaseMaskPolicy:
     """Base class for mask policies.
 
-    A policy's select_mask method determines which positions to unmask
-    (or keep unmasked) at each diffusion step.
+    Override select_remask for repair-mode policies.
+    Override select_fill for custom denoising schedules.
     """
 
-    def select_mask(self, x: np.ndarray, dist: np.ndarray,
+    def select_remask(self, x: np.ndarray,
+                      diagnostics: VerifierDiagnostics,
+                      rng: Optional[np.random.Generator] = None) -> np.ndarray:
+        """Return bool mask of observed positions to set to MASK (repair).
+
+        Default: no remasking.
+        """
+        return np.zeros(len(x), dtype=bool)
+
+    def select_fill(self, x: np.ndarray, dist: np.ndarray,
                     diagnostics: VerifierDiagnostics,
                     rng: Optional[np.random.Generator] = None) -> np.ndarray:
-        """Return boolean array indicating which positions to unmask.
+        """Return bool mask of MASK positions to fill with argmax of dist.
 
-        Args:
-            x: Current assignment vector, shape (n,).
-            dist: Denoiser proposal distribution, shape (n, d).
-            diagnostics: Verifier diagnostics (violations, residuals).
-            rng: Random number generator for stochastic policies.
-
-        Returns:
-            Boolean array of shape (n,): True means "unmask this position"
-            (or keep it unmasked if already observed).
+        Default: fill all MASK positions.
         """
-        raise NotImplementedError
+        return x == MASK
 
 
 class ConfidenceUnmaskPolicy(BaseMaskPolicy):
-    """Unmask positions where the denoiser confidence exceeds a threshold.
+    """Fill masked positions where denoiser confidence exceeds a threshold.
 
-    Let c_i = max_v p_i(v) be the confidence for masked position i.
-    Positions with c_i ≥ τ are unmasked.
-
-    If no positions meet the threshold, the single most confident masked
-    position is unmasked to guarantee progress (c.f. plan Section 13.1).
+    Guarantees at least one fill per step (most confident position).
+    No remasking.
 
     Attributes:
         threshold: Confidence threshold τ ∈ [0, 1].
@@ -68,7 +55,7 @@ class ConfidenceUnmaskPolicy(BaseMaskPolicy):
     def __init__(self, threshold: float = 0.99):
         self.threshold = threshold
 
-    def select_mask(self, x: np.ndarray, dist: np.ndarray,
+    def select_fill(self, x: np.ndarray, dist: np.ndarray,
                     diagnostics: VerifierDiagnostics,
                     rng: Optional[np.random.Generator] = None) -> np.ndarray:
         n = len(x)
@@ -79,31 +66,30 @@ class ConfidenceUnmaskPolicy(BaseMaskPolicy):
         confidences = dist[masked].max(axis=1)
         above_thresh = confidences >= self.threshold
 
-        unmask = np.zeros(n, dtype=bool)
-        unmask[masked[above_thresh]] = True
+        fill = np.zeros(n, dtype=bool)
+        fill[masked[above_thresh]] = True
 
-        # Guarantee at least one unmask per step
-        if not np.any(unmask):
+        # Guarantee at least one fill per step
+        if not np.any(fill):
             best = masked[np.argmax(confidences)]
-            unmask[best] = True
+            fill[best] = True
 
-        return unmask
+        return fill
 
 
 class RandomMaskPolicy(BaseMaskPolicy):
-    """Randomly select a fraction of masked positions to unmask.
+    """Randomly select a fraction of masked positions to fill.
 
-    Selects ceil(α · |M|) positions uniformly at random, where
-    M is the set of currently masked positions and α is the fraction.
+    No remasking.
 
     Attributes:
-        fraction: Fraction α of masked positions to unmask per step.
+        fraction: Fraction of masked positions to fill per step.
     """
 
     def __init__(self, fraction: float = 0.25):
         self.fraction = fraction
 
-    def select_mask(self, x: np.ndarray, dist: np.ndarray,
+    def select_fill(self, x: np.ndarray, dist: np.ndarray,
                     diagnostics: VerifierDiagnostics,
                     rng: Optional[np.random.Generator] = None) -> np.ndarray:
         if rng is None:
@@ -112,19 +98,15 @@ class RandomMaskPolicy(BaseMaskPolicy):
         masked = np.where(x == MASK)[0]
         k = max(1, int(len(masked) * self.fraction))
         chosen = rng.choice(masked, size=k, replace=False)
-        unmask = np.zeros(n, dtype=bool)
-        unmask[chosen] = True
-        return unmask
+        fill = np.zeros(n, dtype=bool)
+        fill[chosen] = True
+        return fill
 
 
 class AllMaskPolicy(BaseMaskPolicy):
-    """Unmask all masked positions in a single step (direct filling).
+    """Fill all masked positions in a single step. No remasking."""
 
-    Equivalent to one-shot generation: denoise → fill all in one step.
-    Useful for establishing an upper bound on single-step performance.
-    """
-
-    def select_mask(self, x: np.ndarray, dist: np.ndarray,
+    def select_fill(self, x: np.ndarray, dist: np.ndarray,
                     diagnostics: VerifierDiagnostics,
                     rng: Optional[np.random.Generator] = None) -> np.ndarray:
         return x == MASK

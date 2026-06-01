@@ -88,7 +88,7 @@ class FiniteReasoningDomain:
     def corrupt(
         self, x: np.ndarray, mask_ratio: float, rng: np.random.Generator
     ) -> np.ndarray:
-        """Return a masked copy of a valid assignment.
+        """Return a masked copy of a valid assignment (mask-only corruption).
 
         Each position is independently set to MASK with probability mask_ratio.
 
@@ -105,6 +105,64 @@ class FiniteReasoningDomain:
         mask = rng.random(n) < mask_ratio
         x_masked[mask] = MASK
         return x_masked
+
+    def wrong_token_corrupt(
+        self, x: np.ndarray, wrong_ratio: float, rng: np.random.Generator
+    ) -> np.ndarray:
+        """Replace a fraction of positions with random wrong values (no masking).
+
+        For each position, independently with probability wrong_ratio,
+        replaces the value with a uniformly random different domain value.
+
+        Args:
+            x: Valid assignment, shape (n,).
+            wrong_ratio: Probability of corrupting each position ∈ [0, 1].
+            rng: Random number generator.
+
+        Returns:
+            x_corrupt: Copy of x with selected positions set to wrong values.
+        """
+        x_corrupt = x.copy()
+        n = self.num_variables()
+        corrupt_mask = rng.random(n) < wrong_ratio
+        for i in np.where(corrupt_mask)[0]:
+            d = self.domain_size(i)
+            wrong_values = [v for v in range(d) if v != x[i]]
+            x_corrupt[i] = rng.choice(wrong_values)
+        return x_corrupt
+
+    def mixed_corrupt(
+        self, x: np.ndarray, mask_ratio: float, wrong_ratio: float,
+        rng: np.random.Generator
+    ) -> np.ndarray:
+        """Apply both masking and wrong-token corruption.
+
+        First masks mask_ratio fraction of positions, then corrupts
+        wrong_ratio fraction of the remaining observed positions.
+        A position can be both masked and corrupted (mask takes priority).
+
+        Args:
+            x: Valid assignment, shape (n,).
+            mask_ratio: Probability of masking each position.
+            wrong_ratio: Probability of corrupting each *observed* position.
+            rng: Random number generator.
+
+        Returns:
+            x_corrupt: Copy of x with mixed corruption.
+        """
+        # Step 1: mask
+        x_corrupt = self.corrupt(x, mask_ratio, rng)
+
+        # Step 2: corrupt observed positions
+        observed = np.where(x_corrupt != MASK)[0]
+        wrong_mask = rng.random(len(observed)) < wrong_ratio
+        for idx in observed[wrong_mask]:
+            d = self.domain_size(idx)
+            x_true = x[idx]
+            wrong_values = [v for v in range(d) if v != x_true]
+            x_corrupt[idx] = rng.choice(wrong_values)
+
+        return x_corrupt
 
     def verifier(self, x: np.ndarray) -> VerifierDiagnostics:
         """Return global violation and local residual information.

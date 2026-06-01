@@ -275,3 +275,52 @@ class PoEDenoiser:
         # Product-of-experts
         from tdr.diffusion.poe import product_of_experts
         return product_of_experts(p_base, q, beta=self.beta)
+
+
+class LocalNoisyDenoiser:
+    """Non-TN base denoiser: local heuristic with logit noise.
+
+    Uses the local Sudoku heuristic (allowed-values only) as a base,
+    then adds logit noise (same structure as NoisyDenoiser).
+
+    This provides an INDEPENDENT base denoiser for PoE testing —
+    the base proposal does NOT use TN marginals, so PoE combining
+    with TN marginals is a genuine combination of two independent
+    sources of information.
+    """
+
+    def __init__(self, domain, sigma: float = 0.5, delta: float = 1e-12):
+        self.domain = domain
+        self.n = domain.num_variables()
+        self.d = domain.max_domain_size()
+        self.sigma = sigma
+        self.delta = delta
+        self._local = LocalSudokuDenoiser(domain)
+
+    def predict(self, x_masked: np.ndarray, rng: Optional[np.random.Generator] = None) -> np.ndarray:
+        if rng is None:
+            rng = np.random.default_rng()
+
+        # Local heuristic base (no TN marginals)
+        p_local = self._local.predict(x_masked, rng=rng)
+
+        if self.sigma == 0.0:
+            return p_local
+
+        # Add logit noise
+        logits = np.log(p_local + self.delta)
+        noise = rng.normal(0.0, self.sigma, size=logits.shape)
+        logits_noisy = logits + noise
+
+        # Softmax
+        logits_noisy -= logits_noisy.max(axis=-1, keepdims=True)
+        p_noisy = np.exp(logits_noisy)
+        p_noisy /= p_noisy.sum(axis=-1, keepdims=True)
+
+        # Restore observed-position deltas
+        for i in range(self.n):
+            if x_masked[i] != MASK:
+                p_noisy[i, :] = 0.0
+                p_noisy[i, x_masked[i]] = 1.0
+
+        return p_noisy

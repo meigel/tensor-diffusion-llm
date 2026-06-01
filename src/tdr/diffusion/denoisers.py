@@ -207,6 +207,11 @@ class NoisyDenoiser:
             q_exact = np.full((self.n, self.d), 1.0 / self.d, dtype=np.float64)
 
         if self.sigma == 0.0:
+            # Still need to restore observed-position deltas
+            for i in range(self.n):
+                if x_masked[i] != MASK:
+                    q_exact[i, :] = 0.0
+                    q_exact[i, x_masked[i]] = 1.0
             return q_exact
 
         # Add logit noise

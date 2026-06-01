@@ -8,7 +8,7 @@ import pytest
 from tdr import MASK
 from tdr.domains.sudoku4 import Sudoku4Domain
 from tdr.tn.marginals import ContractionMarginalBackend
-from tdr.diffusion.poe import product_of_experts
+from tdr.diffusion.poe import product_of_experts, _safe_log
 from tdr.diffusion.denoisers import (
     NoisyDenoiser,
     PoEDenoiser,
@@ -82,6 +82,60 @@ class TestProductOfExperts:
         assert np.allclose(p_combined[:, 0], 1.0, atol=1e-5)
         # Non-zero mass at other values should be negligible
         assert np.all(p_combined[:, 0] > 1.0 - 1e-5)
+
+    def test_conflicting_zeros(self):
+        """Conflicting hard zeros: each expert vetoes the other's choice.
+
+        p = [1, 0] (delta on value 0), q = [0, 1] (delta on value 1).
+
+        The product p(v)^β · q(v)^(1-β) is zero for both values when
+        0 < β < 1, because each value is vetoed by one expert.
+        At β=1 or β=0, the non-vetoing expert prevails.
+        """
+        p = np.array([[1.0, 0.0]])
+        q = np.array([[0.0, 1.0]])
+
+        # beta=1: p only → [1, 0]
+        assert np.allclose(product_of_experts(p, q, beta=1.0), p)
+
+        # beta=0: q only → [0, 1]
+        assert np.allclose(product_of_experts(p, q, beta=0.0), q)
+
+        # beta=0.5: both experts veto each other's value → all zeros
+        r = product_of_experts(p, q, beta=0.5)
+        assert np.all(r == 0.0), f"Conflicting zeros should cancel: {r}"
+
+        # beta=0.9: mostly p, but q still vetoes value 0 → all zeros
+        r = product_of_experts(p, q, beta=0.9)
+        assert np.all(r == 0.0), f"beta=0.9, q's zeros still block: {r}"
+
+    def test_both_zeros_all_zero_row(self):
+        """When both experts assign zero to all values, the row remains zero."""
+        p = np.zeros((1, 4))
+        q = np.zeros((1, 4))
+        r = product_of_experts(p, q, beta=0.5)
+        assert np.all(r == 0.0), f"All-zero row should stay zero: {r}"
+
+    def test_safe_log_preserves_zeros(self):
+        """_safe_log should map 0 → -inf and positive → finite."""
+        x = np.array([0.0, 0.5, 1.0])
+        lx = _safe_log(x)
+        assert lx[0] == -np.inf
+        assert np.isfinite(lx[1])
+        assert np.isfinite(lx[2])
+
+    def test_log_zero_multiplication(self):
+        """-inf * 0 should be handled (beta=0 or beta=1 boundaries)."""
+        p = np.array([[1.0, 0.0]])
+        q = np.array([[0.3, 0.7]])
+
+        # beta=0 uses only q, p's zeros don't matter
+        r0 = product_of_experts(p, q, beta=0.0)
+        assert np.allclose(r0, q)
+
+        # beta=1 uses only p, q's zeros don't matter
+        r1 = product_of_experts(p, q, beta=1.0)
+        assert np.allclose(r1, p)
 
 
 class TestNoisyDenoiser:

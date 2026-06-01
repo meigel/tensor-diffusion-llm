@@ -97,9 +97,11 @@ def run_sweep(mask_ratio: float = 0.5, num_trials: int = 50, max_steps: int = 20
                 denoiser = noisy_denoiser
                 label = f"noisy_s{sigma}"
             elif beta == 0.0:
-                # Pure TN (no noisy)
+                # Pure TN (no noisy) — only run once, skip duplicates
+                if sigma != SIGMA_VALUES[0]:
+                    continue
                 denoiser = DENOISER_TN
-                label = f"TN"
+                label = "TN_baseline"
             else:
                 # PoE combination
                 denoiser = PoEDenoiser(noisy_denoiser, BACKEND, beta=beta)

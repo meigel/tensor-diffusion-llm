@@ -68,9 +68,9 @@ Our key contributions are:
 \begin{itemize}[leftmargin=2em]
     \item Identifying a fundamental failure mode of masked diffusion: wrong observed tokens cause irreversible contamination.
     \item Proposing verifier-guided remasking as a domain-agnostic remedy, requiring only a verifier producing local residuals.
-    \item Demonstrating $98$--$100\%$ repair success on Sudoku and $74$--$86\%$ on SAT under high wrong-token ratios, versus $8$--$26\%$ without repair.
+    \item Demonstrating $98$--$100\%$ repair success on Sudoku and $71$--$91\%$ on SAT under high wrong-token ratios, versus $8$--$26\%$ without repair.
     \item Introducing mechanism-isolating controls showing that verifier remasking alone is insufficient: success requires a denoiser with useful constraint information.
-    \item Validating on $50$ different random SAT formulas to ensure results generalize beyond a single instance.
+    \item Validating on $200$ different random SAT formulas to ensure results generalize beyond a single instance.
 \end{itemize}
 
 % ==============================================================================
@@ -244,7 +244,7 @@ The repair + random baseline ($0\%$ everywhere) is the most important control fo
 \begin{enumerate}[leftmargin=2em]
     \item Detecting violated constraints is not sufficient; the denoiser must propose correct new values.
     \item The success of tn + repair is not an artifact of the remasking loop.
-    \item The structured marginal computation in the TN backend provides value beyond simple local heuristics.
+    \item Repair succeeds across multiple denoiser types (local, TN, learned), showing the mechanism is denoiser-agnostic.
 \end{enumerate}
 
 A second control --- \textbf{random remasking} (TN denoiser but remasking randomly chosen observed positions instead of verifier-selected ones) --- isolates whether \emph{localization} matters. The results are clear:
@@ -290,7 +290,6 @@ Verifier-guided remasking is a general mechanism that applies to any domain with
 
 \textbf{SAT success ceiling.} The $74\%$ ceiling at high wrong-token ratios on SAT suggests that some instances are too corrupted --- too many clauses are simultaneously violated --- for iterative remasking to recover. This is an inherent limitation of the remasking approach: if a large fraction of observed evidence is wrong, the system may not converge.
 
-\textbf{No learning.} Our denoisers are either local heuristics or exact TN marginals. In practice, one would use a learned neural denoiser. However, the verifier and remasking mechanism are agnostic to the denoiser implementation.
 
 % ==============================================================================
 \section{Conclusion}

@@ -1,5 +1,36 @@
 """
 4x4 Sudoku domain: 16 variables, row/col/box all-different constraints.
+
+Variable encoding
+-----------------
+Variables are indexed as i = 4·r + c with r, c ∈ {0, 1, 2, 3}.
+Values are {0, 1, 2, 3} internally, representing {1, 2, 3, 4} in
+standard Sudoku notation.
+
+Constraint groups
+-----------------
+There are 12 all-different constraint groups G:
+
+  • 4 rows:       each row must contain {0, 1, 2, 3} exactly once
+  • 4 columns:    each column must contain {0, 1, 2, 3} exactly once
+  • 4 boxes:      each 2×2 box must contain {0, 1, 2, 3} exactly once
+
+Each group factor ψ_G(x_G) = 1 iff all elements of x_G are distinct.
+
+Verifier (Option B — soft partial violation)
+---------------------------------------------
+A group is violated if any two *observed* (non-MASK) variables share
+the same value. Masked variables are ignored:
+
+    V(x) = Σ_{G ∈ G} 1{∃ i,j ∈ G : x_i = x_j ≠ MASK}
+
+Local residual:
+    r_i(x) = |{G ∈ G : i ∈ G and G is violated}|
+
+Solutions
+---------
+The full solution set contains exactly 288 valid 4×4 Sudoku completions
+(enumerated by depth-first backtracking with partial validity checking).
 """
 
 import itertools
@@ -12,10 +43,11 @@ from tdr.domains.base import FiniteReasoningDomain, Factor, VerifierDiagnostics
 
 
 class Sudoku4Domain(FiniteReasoningDomain):
-    """4x4 Sudoku (12 constraint groups: 4 rows + 4 cols + 4 boxes).
+    """4x4 Sudoku domain with 12 all-different constraint groups.
 
-    Variables indexed as i = 4*r + c  (r,c in {0,1,2,3}).
-    Values in {0,1,2,3} internally (1,2,3,4 in standard Sudoku notation).
+    The state space has n = 16 variables, each taking values in {0,1,2,3}.
+    A complete valid assignment satisfies all row, column, and 2×2 box
+    all-different constraints simultaneously.
     """
 
     N = 16
@@ -27,13 +59,14 @@ class Sudoku4Domain(FiniteReasoningDomain):
 
     @classmethod
     def _build_groups(cls):
+        """Build the 12 constraint groups (4 rows + 4 columns + 4 boxes)."""
         if cls._GROUPS:
             return
         groups = []
-        # rows
+        # rows: each row is {4r, 4r+1, 4r+2, 4r+3}
         for r in range(4):
             groups.append(tuple(4 * r + c for c in range(4)))
-        # columns
+        # columns: each column is {r, r+4, r+8, r+12}
         for c in range(4):
             groups.append(tuple(4 * r + c for r in range(4)))
         # 2x2 boxes
@@ -64,7 +97,15 @@ class Sudoku4Domain(FiniteReasoningDomain):
     # Solution generator
     # ------------------------------------------------------------------
     def _generate_all_solutions(self) -> np.ndarray:
-        """Enumerate all valid 4x4 Sudoku solutions via backtracking."""
+        """Enumerate all 288 valid 4x4 Sudoku solutions via DFS backtracking.
+
+        The search starts from an all-MASK state and fills positions in
+        index order (0 through 15). At each step _is_partial_valid prunes
+        branches that cannot lead to a valid solution.
+
+        Returns:
+            solutions: Array of shape (288, 16) of all valid completions.
+        """
         solutions = []
 
         def backtrack(idx, assignment):
@@ -85,11 +126,22 @@ class Sudoku4Domain(FiniteReasoningDomain):
 
     @staticmethod
     def _is_partial_valid(x: np.ndarray, last_idx: int) -> bool:
-        """Check if partial assignment up to last_idx is valid."""
-        # Only check groups that are fully assigned up to last_idx
+        """Check whether a partial assignment up to position last_idx is valid.
+
+        Examines the row, column, and box containing last_idx. Only positions
+        ≤ last_idx are considered; future positions (still MASK) are ignored.
+
+        Args:
+            x: Partial assignment, shape (16,).
+            last_idx: The index last assigned (0-indexed).
+
+        Returns:
+            True if the assignment satisfies all constraints among the
+            assigned positions within each constraint group.
+        """
         r, c = divmod(last_idx, 4)
 
-        # Check row
+        # Check row: no duplicate values in row r among positions ≤ last_idx
         row_vars = [4 * r + cc for cc in range(4)]
         seen = set()
         for i in row_vars:
@@ -100,7 +152,7 @@ class Sudoku4Domain(FiniteReasoningDomain):
             if i <= last_idx:
                 seen.add(x[i])
 
-        # Check column
+        # Check column: no duplicate values in column c
         col_vars = [4 * rr + c for rr in range(4)]
         seen = set()
         for i in col_vars:
@@ -111,7 +163,7 @@ class Sudoku4Domain(FiniteReasoningDomain):
             if i <= last_idx:
                 seen.add(x[i])
 
-        # Check box
+        # Check box: no duplicate values in the 2×2 box
         br, bc = r // 2, c // 2
         box_vars = [4 * (2 * br + rr) + (2 * bc + cc) for rr in range(2) for cc in range(2)]
         seen = set()
@@ -126,30 +178,44 @@ class Sudoku4Domain(FiniteReasoningDomain):
         return True
 
     def _get_solutions(self) -> np.ndarray:
+        """Lazily generate and cache all solutions."""
         if self._solutions is None:
             self._solutions = self._generate_all_solutions()
         return self._solutions
 
     def sample_solution(self, rng: np.random.Generator) -> np.ndarray:
+        """Return a uniformly random valid solution."""
         solutions = self._get_solutions()
         idx = rng.integers(len(solutions))
         return solutions[idx].copy()
 
     def enumerate_solutions(self) -> np.ndarray:
+        """Return all 288 valid solutions."""
         return self._get_solutions().copy()
 
     # ------------------------------------------------------------------
     # Verifier
     # ------------------------------------------------------------------
     def verifier(self, x: np.ndarray) -> VerifierDiagnostics:
-        """Return global violation count and per-variable local residuals.
+        """Evaluate constraint violations (Option B — soft partial violation).
 
-        A group is violated if any two *observed* variables share the same
-        value (Option B: soft partial violation from the plan).
+        A group G is violated if any two *observed* (non-MASK) variables
+        in G share the same value. Masked variables are ignored.
 
-        Local residual r_i = number of violated groups containing variable i.
+        Global violation:
+            V(x) = Σ_{G ∈ G} 1{∃ i,j ∈ G : x_i = x_j ≠ MASK}
 
-        Raises ValueError if x has wrong shape or values outside the domain.
+        Local residual:
+            r_i(x) = |{G ∈ G : i ∈ G and G is violated}|
+
+        Args:
+            x: Assignment, shape (16,). Entries in {MASK, 0, 1, 2, 3}.
+
+        Returns:
+            VerifierDiagnostics with counts.
+
+        Raises:
+            ValueError: If x has wrong shape or values outside {MASK, 0, 1, 2, 3}.
         """
         if x.shape != (self.N,):
             raise ValueError(
@@ -166,7 +232,6 @@ class Sudoku4Domain(FiniteReasoningDomain):
         local_residuals = np.zeros(n, dtype=np.int64)
 
         for group in self._GROUPS:
-            # Collect observed values in this group
             values_seen = {}
             violated = False
             for i in group:
@@ -192,7 +257,11 @@ class Sudoku4Domain(FiniteReasoningDomain):
     # Factors for TN / brute-force inference
     # ------------------------------------------------------------------
     def build_factors(self) -> list[Factor]:
-        """Return an all-different factor for each Sudoku constraint group."""
+        """Return an all-different factor for each of the 12 constraint groups.
+
+        Each factor table has shape (4, 4, 4, 4) with entry 1.0 iff all
+        four values are pairwise distinct.
+        """
         factors = []
         for group in self._GROUPS:
             table = self._all_different_table(len(group), self.D)
@@ -201,7 +270,12 @@ class Sudoku4Domain(FiniteReasoningDomain):
 
     @staticmethod
     def _all_different_table(arity: int, d: int) -> np.ndarray:
-        """Build a table that is 1.0 iff all arguments are distinct."""
+        """Build a factor table that is 1.0 iff all arguments are distinct.
+
+        ψ(x_1, ..., x_k) = 1{x_i ≠ x_j for all i ≠ j}
+
+        The resulting table has shape (d,) × arity.
+        """
         shape = (d,) * arity
         table = np.zeros(shape, dtype=np.float64)
         for assignment in itertools.product(range(d), repeat=arity):
@@ -214,12 +288,17 @@ class Sudoku4Domain(FiniteReasoningDomain):
     # ------------------------------------------------------------------
     @staticmethod
     def puzzle_easy() -> np.ndarray:
-        """Return a partially filled puzzle with a unique solution."""
-        # Example from the plan:
-        # . 2 . .
-        # . . 3 .
-        # . . . 1
-        # 4 . . .
+        """Return a partially filled 4×4 Sudoku puzzle with exactly one solution.
+
+        Puzzle (standard notation):
+            . 2 . .
+            . . 3 .
+            . . . 1
+            4 . . .
+
+        Returns:
+            Array of shape (16,) with MASK at unknown positions.
+        """
         x = np.full(16, MASK, dtype=np.int64)
         x[1] = 1   # (0,1) = 2 → value 1 (0-indexed)
         x[6] = 2   # (1,2) = 3 → value 2
@@ -229,7 +308,17 @@ class Sudoku4Domain(FiniteReasoningDomain):
 
     @staticmethod
     def puzzle_full() -> np.ndarray:
-        """Return a full valid grid for reference."""
+        """Return a known full valid 4×4 Sudoku grid for testing.
+
+        Grid in standard notation:
+            2 3 4 1
+            4 1 2 3
+            1 4 3 2
+            3 2 1 4
+
+        Returns:
+            Array of shape (16,) with all positions filled.
+        """
         x = np.array([
             1, 2, 3, 0,   # row 0: 2,3,4,1
             3, 0, 1, 2,   # row 1: 4,1,2,3

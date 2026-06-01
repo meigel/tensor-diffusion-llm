@@ -1,13 +1,18 @@
 """
 Experiment runner for Milestone 1: brute-force Sudoku masked completion.
 
-Compares:
-  1. Random denoiser (baseline)
-  2. Local heuristic denoiser
-  3. TN marginal denoiser (brute-force exact marginals)
+Compares three denoiser methods on the 4×4 Sudoku domain:
+  1. Random denoiser (baseline — uniform guessing)
+  2. Local heuristic denoiser (locally allowed values only)
+  3. TN marginal denoiser (exact brute-force conditional marginals)
+
+Each method is evaluated over `num_trials` independent trials at a
+given mask_ratio. Results are saved as JSON for downstream analysis
+and plotting.
 
 Usage:
     python -m tdr.experiments.run_symbolic_tn_denoising
+    python -m tdr.experiments.run_symbolic_tn_denoising --mask-ratio 0.75 --trials 50
 """
 
 import json
@@ -39,7 +44,24 @@ def run_trial(
     mask_ratio: float,
     max_steps: int = 20,
 ) -> dict:
-    """Run a single trial and return metrics."""
+    """Run a single completion trial and return serialisable metrics.
+
+    The trial:
+      1. Samples a random valid solution x_true.
+      2. Corrupts by masking each position independently with probability mask_ratio.
+      3. Runs MaskedDiffusionSampler with ConfidenceUnmaskPolicy(threshold=0.99).
+      4. Evaluates the final state: success iff full assignment with zero violations.
+
+    Args:
+        domain:      Sudoku4Domain instance.
+        denoiser:    Denoiser object (Random, LocalSudoku, or TNMarginal).
+        seed:        PRNG seed for reproducibility.
+        mask_ratio:  Independent masking probability.
+        max_steps:   Maximum diffusion steps.
+
+    Returns:
+        dict of trial metrics (JSON-serialisable).
+    """
     rng = np.random.default_rng(seed)
 
     # Generate a valid solution and corrupt it
@@ -86,7 +108,20 @@ def run_experiment(
     num_trials: int = 100,
     max_steps: int = 20,
 ) -> dict:
-    """Run the full experiment comparing three denoisers."""
+    """Run the full three-method comparison experiment.
+
+    For each denoiser, runs num_trials independent masked completion
+    trials and aggregates success rate, average violations, average
+    steps, and wall-clock time.
+
+    Args:
+        mask_ratio:  Independent masking probability.
+        num_trials:  Number of trials per method.
+        max_steps:   Maximum diffusion steps.
+
+    Returns:
+        dict mapping method_name → aggregated results + per-trial data.
+    """
     domain = Sudoku4Domain()
     backend = BruteForceMarginalBackend(domain)
 
@@ -145,6 +180,7 @@ def run_experiment(
 
 
 def main():
+    """CLI entry point with argparse."""
     import argparse
 
     parser = argparse.ArgumentParser(

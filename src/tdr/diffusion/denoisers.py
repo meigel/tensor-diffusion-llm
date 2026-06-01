@@ -1,10 +1,24 @@
 """
 Denoisers for masked diffusion.
 
-Provides:
-- RandomDenoiser: uniform random filling.
-- LocalSudokuDenoiser: row/col/box local allowed-values heuristic.
-- TNMarginalDenoiser: wraps a marginal backend (e.g. brute force).
+Provides proposal distributions p_i(v) for each masked variable i.
+These are the 'noise predictor' side of the masked diffusion process.
+
+Mathematical setting
+--------------------
+At each diffusion step k, given a masked state x^{(k)}, a denoiser
+produces a distribution over values for each masked position:
+
+    p_i(v) = Proposal(x_i = v | x^{(k)}_{observed})
+
+Denoisers range from trivial (uniform random) through heuristic
+(local allowed values) to exact (TN marginals).
+
+Denoiser types
+--------------
+1. RandomDenoiser:      p_i(v) = 1/d (uniform)
+2. LocalSudokuDenoiser: p_i(v) ∝ 1{v not locally forbidden}
+3. TNMarginalDenoiser:  p_i(v) = q_i(v) (exact TN marginal)
 """
 
 from typing import Optional
@@ -17,7 +31,12 @@ from tdr.tn.brute_force_backend import BruteForceMarginalBackend
 
 
 class RandomDenoiser:
-    """Denoiser that predicts uniformly over feasible values."""
+    """Denoiser that predicts uniformly over all domain values.
+
+    p_i(v) = 1/d  for all masked positions i and all values v.
+
+    Acts as the weakest baseline — random guessing without constraints.
+    """
 
     def __init__(self, domain: FiniteReasoningDomain):
         self.domain = domain
@@ -25,7 +44,18 @@ class RandomDenoiser:
         self.d = domain.max_domain_size()
 
     def predict(self, x_masked: np.ndarray, rng: Optional[np.random.Generator] = None) -> np.ndarray:
-        """Return uniform distribution over all values for masked positions."""
+        """Return uniform distribution over all values.
+
+        For observed positions, returns a delta distribution.
+        For masked positions, returns uniform 1/d over all d values.
+
+        Args:
+            x_masked: State array, shape (n,); entries in {0,...,d-1} or MASK.
+            rng:      Ignored (included for interface compatibility).
+
+        Returns:
+            q: Array of shape (n, d) of probability distributions.
+        """
         q = np.full((self.n, self.d), 1.0 / self.d, dtype=np.float64)
         for i in range(self.n):
             if x_masked[i] != MASK:
@@ -35,11 +65,15 @@ class RandomDenoiser:
 
 
 class LocalSudokuDenoiser:
-    """Local heuristic denoiser for Sudoku.
+    """Local heuristic denoiser using row/col/box forbidden values.
 
-    For each masked position, predict uniform over values that do not
-    immediately conflict with observed neighbours in the same row,
-    column, or box.  Does NOT reason globally.
+    For each masked position i, identifies values that appear in
+    already-observed positions of the same row, column, or 2×2 box.
+    The proposal is uniform over the remaining (allowed) values.
+
+    This heuristic reasons only locally and does NOT capture global
+    constraint interactions. It serves as a structured baseline
+    between random guessing and exact TN marginals.
     """
 
     def __init__(self, domain: FiniteReasoningDomain):
@@ -53,6 +87,21 @@ class LocalSudokuDenoiser:
                 self._groups_of[i].append(group)
 
     def predict(self, x_masked: np.ndarray, rng: Optional[np.random.Generator] = None) -> np.ndarray:
+        """Compute locally-allowed proposal distribution.
+
+        For each masked position i:
+            1. Collect all values that appear in observed positions
+               sharing a row, column, or box with i (the 'forbidden set').
+            2. Distribute probability uniformly over remaining values.
+            3. Fallback to uniform if all values are locally forbidden.
+
+        Args:
+            x_masked: State array, shape (n,).
+            rng:      Ignored.
+
+        Returns:
+            q: Array of shape (n, d) of probability distributions.
+        """
         q = np.zeros((self.n, self.d), dtype=np.float64)
 
         for i in range(self.n):
@@ -72,16 +121,19 @@ class LocalSudokuDenoiser:
                 for v in allowed:
                     q[i, v] = 1.0 / len(allowed)
             else:
-                # All values are locally forbidden -> fallback to uniform
+                # All values are locally forbidden — fallback to uniform
                 q[i, :] = 1.0 / self.d
 
         return q
 
 
 class TNMarginalDenoiser:
-    """Denoiser that uses exact logical marginals from a marginal backend.
+    """Denoiser using exact logical marginals from a backend.
 
-    Wraps BruteForceMarginalBackend (or future TNReasonBackend).
+    p_i(v) = q_i(v) = P_Ψ(x_i = v | x_{observed})
+
+    where q_i(v) comes from a BruteForceMarginalBackend (or future
+    tensor-network backend). This is the exact oracle denoiser.
     """
 
     def __init__(self, backend: BruteForceMarginalBackend):
@@ -90,8 +142,20 @@ class TNMarginalDenoiser:
         self.d = backend.max_d
 
     def predict(self, x_masked: np.ndarray, rng: Optional[np.random.Generator] = None) -> np.ndarray:
+        """Return exact TN marginal distributions.
+
+        Delegates to the marginal backend. If the observed state is
+        a contradiction (no compatible solutions), falls back to
+        uniform distribution.
+
+        Args:
+            x_masked: State array, shape (n,).
+            rng:      Ignored.
+
+        Returns:
+            q: Array of shape (n, d) of marginal probability distributions.
+        """
         q, n_compat, status = self.backend.marginals(x_masked)
         if status == "contradiction":
-            # No compatible solutions: return uniform as fallback
             q = np.full((self.n, self.d), 1.0 / self.d, dtype=np.float64)
         return q

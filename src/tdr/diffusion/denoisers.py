@@ -27,7 +27,7 @@ import numpy as np
 
 from tdr import MASK
 from tdr.domains.base import FiniteReasoningDomain
-from tdr.tn.brute_force_backend import BruteForceMarginalBackend
+from tdr.tn.marginals import MarginalBackend
 
 
 class RandomDenoiser:
@@ -132,11 +132,11 @@ class TNMarginalDenoiser:
 
     p_i(v) = q_i(v) = P_Ψ(x_i = v | x_{observed})
 
-    where q_i(v) comes from a BruteForceMarginalBackend (or future
-    tensor-network backend). This is the exact oracle denoiser.
+    where q_i(v) comes from any MarginalBackend (brute-force, contraction,
+    or future tensor-network backend).
     """
 
-    def __init__(self, backend: BruteForceMarginalBackend):
+    def __init__(self, backend: MarginalBackend):
         self.backend = backend
         self.n = backend.n
         self.d = backend.max_d

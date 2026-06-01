@@ -82,14 +82,13 @@ def train_epoch(model, dataloader, optimizer, criterion, device, d):
         masked_indices = mask_flat.nonzero(as_tuple=True)[0]
         if len(masked_indices) > 0:
             loss = criterion(logits[masked_indices], targets_flat[masked_indices].long())
-        else:
-            loss = torch.tensor(0.0, device=device)
-
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-        total_loss += loss.item()
-        num_batches += 1
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            total_loss += loss.item()
+            num_batches += 1
+        # else: all-observed batch — skip backward/step to avoid
+        # backward() on a no-grad tensor
 
     return total_loss / max(num_batches, 1)
 
@@ -190,7 +189,12 @@ def main():
 
     # Quick repair evaluation
     print("\n=== Repair evaluation ===")
-    learned = denoiser_cls(model, n, d)
+    # Pass per-position domain sizes for heterogeneous domains (mdlm only)
+    if args.model == "mdlm":
+        domain_sizes = [domain.domain_size(i) for i in range(n)]
+        learned = MDLMTransformerDenoiser(model, n, d, domain_sizes=domain_sizes)
+    else:
+        learned = LearnedDenoiser(model, n, d)
     for wr in [0.0, 0.1, 0.2]:
         for use_repair in [False, True]:
             policy = VerifierRepairPolicy(remask_threshold=1) if use_repair else ConfidenceUnmaskPolicy(threshold=0.99)

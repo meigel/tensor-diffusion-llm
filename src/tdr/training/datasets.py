@@ -100,6 +100,14 @@ def compute_denoising_accuracy(
             # state: (n*(d+1),), target: (n,), mask: (n,)
             logits = model(state.unsqueeze(0).to(device))  # (1, n*d)
             logits = logits.reshape(1, dataset.n, dataset.d)
+
+            # Domain-mask invalid classes for heterogeneous domains
+            # (e.g. JSON where age has 63 values but role has 4)
+            for i in range(dataset.n):
+                ds = dataset.domain.domain_size(i)
+                if ds < dataset.d:
+                    logits[0, i, ds:] = float("-inf")
+
             preds = logits.argmax(dim=-1).squeeze(0).cpu().numpy()  # (n,)
             masked_positions = mask.numpy()
             target_np = target.numpy()

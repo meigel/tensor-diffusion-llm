@@ -152,13 +152,33 @@ class MDLMTransformerDenoiser:
     Converts between the sampler's integer-coded state (n,) with MASK
     and the transformer's one-hot encoding, runs inference, and returns
     (n, d) probability distributions.
+
+    For domains with heterogeneous per-position domain sizes (e.g. JSON
+    where age has 63 values but role has 4), invalid logits are masked
+    to -inf before softmax so the predictor never emits impossible values.
+
+    Args:
+        model: Trained TransformerDenoiserModel.
+        n: Number of variables.
+        d: Maximum domain size (used for array shapes).
+        domain_sizes: Optional list of per-variable domain sizes.
+                      If provided, logits for each position i are
+                      restricted to the first domain_sizes[i] values.
+                      If None (default), all d values are used.
     """
 
-    def __init__(self, model: TransformerDenoiserModel, n: int, d: int):
+    def __init__(
+        self,
+        model: TransformerDenoiserModel,
+        n: int,
+        d: int,
+        domain_sizes: list[int] | None = None,
+    ):
         self.model = model
         self.model.eval()
         self.n = n
         self.d = d
+        self.domain_sizes = domain_sizes
         self._device = next(model.parameters()).device
 
     def predict(
@@ -167,6 +187,10 @@ class MDLMTransformerDenoiser:
         rng: np.random.Generator | None = None,
     ) -> np.ndarray:
         """Return denoiser predictions for the masked state.
+
+        For heterogeneous domains, invalid classes (beyond each
+        position's domain_size) are masked to -inf before softmax,
+        so the sampler never receives impossible proposals.
 
         Args:
             x_masked: State array, shape (n,); entries in
@@ -194,6 +218,13 @@ class MDLMTransformerDenoiser:
             logits = self.model(one_hot)  # (1, n*d)
 
         logits = logits.reshape(1, n, d)
+
+        # Domain mask: for heterogeneous domains, suppress invalid classes
+        if self.domain_sizes is not None:
+            for i in range(n):
+                if self.domain_sizes[i] < d:
+                    logits[0, i, self.domain_sizes[i]:] = float("-inf")
+
         probs = torch.softmax(logits, dim=-1).squeeze(0).cpu().numpy()
 
         # Override observed positions with delta distributions

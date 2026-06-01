@@ -50,9 +50,9 @@ class BoolSatDomain(FiniteReasoningDomain):
     """
 
     def __init__(self, n_vars: int = 20, n_clauses: int = 60, k: int = 3,
-                 rng: Optional[np.random.Generator] = None):
-        if rng is None:
-            rng = np.random.default_rng()
+                 formula_seed: Optional[int] = None):
+        rng = np.random.default_rng(formula_seed)
+        self._formula_seed = formula_seed
         self._n = n_vars
         self._k = k
         self._planted = rng.integers(0, 2, size=n_vars, dtype=np.int64)

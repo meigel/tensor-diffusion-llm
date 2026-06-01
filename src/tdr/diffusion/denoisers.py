@@ -324,3 +324,57 @@ class LocalNoisyDenoiser:
                 p_noisy[i, x_masked[i]] = 1.0
 
         return p_noisy
+
+
+class LearnedDenoiser:
+    """Neural denoiser: small MLP trained on masked completion.
+
+    Takes a masked state (one-hot encoded: d values + 1 MASK channel)
+    and predicts logits for each position's true value.
+
+    Architecture: MLP with configurable hidden layers.
+    This is the learned component that replaces TN marginals,
+    enabling a genuine test of whether verifier-guided remasking
+    improves an imperfect learned denoiser.
+    """
+
+    def __init__(self, model: 'torch.nn.Module', n: int, d: int):
+        self.model = model
+        self.model.eval()
+        self.n = n
+        self.d = d
+        self._device = next(model.parameters()).device
+
+    def predict(self, x_masked: np.ndarray, rng: Optional[np.random.Generator] = None) -> np.ndarray:
+        """Return learned denoiser predictions.
+
+        Args:
+            x_masked: State array, shape (n,); MASK or domain values.
+            rng: Ignored.
+
+        Returns:
+            q: Array of shape (n, d) of predicted probabilities.
+        """
+        import torch
+
+        # One-hot encode: d values + 1 MASK channel
+        n, d = self.n, self.d
+        one_hot = torch.zeros(1, n * (d + 1), dtype=torch.float32, device=self._device)
+        for i in range(n):
+            if x_masked[i] == MASK:
+                one_hot[0, i * (d + 1) + d] = 1.0
+            else:
+                one_hot[0, i * (d + 1) + x_masked[i]] = 1.0
+
+        with torch.no_grad():
+            logits = self.model(one_hot)  # (1, n*d)
+        logits = logits.reshape(1, n, d)
+        probs = torch.softmax(logits, dim=-1).squeeze(0).cpu().numpy()  # (n, d)
+
+        # Restore observed-position deltas
+        for i in range(n):
+            if x_masked[i] != MASK:
+                probs[i, :] = 0.0
+                probs[i, x_masked[i]] = 1.0
+
+        return probs

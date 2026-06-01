@@ -28,6 +28,7 @@ import numpy as np
 from tdr import MASK
 from tdr.domains.base import FiniteReasoningDomain
 from tdr.tn.marginals import MarginalBackend
+from tdr.diffusion.poe import product_of_experts
 
 
 class RandomDenoiser:
@@ -159,3 +160,113 @@ class TNMarginalDenoiser:
         if status == "contradiction":
             q = np.full((self.n, self.d), 1.0 / self.d, dtype=np.float64)
         return q
+
+
+class NoisyDenoiser:
+    """Denoiser that adds logit noise to the exact TN marginals.
+
+    Simulates an imperfect neural model by perturbing the log of the
+    exact marginal with Gaussian noise:
+
+        ℓ_i(v) = log(q_i(v) + δ) + σ · ξ_{i,v},
+        p_i(v) = softmax(ℓ_i)_v,
+
+    where ξ_{i,v} ∼ N(0, 1) and σ is the noise level.
+
+    Attributes:
+        backend: MarginalBackend providing q_i(v).
+        sigma:   Noise level σ (standard deviation of logit noise).
+        delta:   Small constant for numerical stability in log.
+        n:       Number of variables.
+        d:       Domain size.
+    """
+
+    def __init__(self, backend: MarginalBackend, sigma: float = 0.5, delta: float = 1e-12):
+        self.backend = backend
+        self.sigma = sigma
+        self.delta = delta
+        self.n = backend.n
+        self.d = backend.max_d
+
+    def predict(self, x_masked: np.ndarray, rng: Optional[np.random.Generator] = None) -> np.ndarray:
+        """Return noise-perturbed marginal distributions.
+
+        Args:
+            x_masked: State array, shape (n,); MASK or domain values.
+            rng:      Random generator for noise ξ.
+
+        Returns:
+            q: Array of shape (n, d) of probability distributions.
+        """
+        if rng is None:
+            rng = np.random.default_rng()
+
+        # Get exact TN marginals
+        q_exact, _, status = self.backend.marginals(x_masked)
+        if status == "contradiction":
+            q_exact = np.full((self.n, self.d), 1.0 / self.d, dtype=np.float64)
+
+        if self.sigma == 0.0:
+            return q_exact
+
+        # Add logit noise
+        logits = np.log(q_exact + self.delta)
+        noise = rng.normal(0.0, self.sigma, size=logits.shape)
+        logits_noisy = logits + noise
+
+        # Softmax
+        logits_noisy -= logits_noisy.max(axis=-1, keepdims=True)
+        q_noisy = np.exp(logits_noisy)
+        q_noisy /= q_noisy.sum(axis=-1, keepdims=True)
+
+        # Override observed positions with delta distributions
+        for i in range(self.n):
+            if x_masked[i] != MASK:
+                q_noisy[i, :] = 0.0
+                q_noisy[i, x_masked[i]] = 1.0
+
+        return q_noisy
+
+
+class PoEDenoiser:
+    """Product-of-experts denoiser combining a base denoiser with TN marginals.
+
+    At each step, computes:
+
+        log p̃_i(v) = β · log p_i(v) + (1-β) · log q_i(v)
+
+    where p_i(v) comes from a base denoiser (e.g. NoisyDenoiser) and
+    q_i(v) comes from a TN marginal backend.
+
+    This is the central mechanism for logic-guided denoising
+    (c.f. plan Section 7).
+    """
+
+    def __init__(self, base_denoiser, backend: MarginalBackend, beta: float = 0.5):
+        self.base = base_denoiser
+        self.backend = backend
+        self.beta = beta
+        self.n = backend.n
+        self.d = backend.max_d
+
+    def predict(self, x_masked: np.ndarray, rng: Optional[np.random.Generator] = None) -> np.ndarray:
+        """Return PoE-corrected distribution.
+
+        Args:
+            x_masked: State array, shape (n,).
+            rng:      Random generator (passed to base denoiser).
+
+        Returns:
+            p: Array of shape (n, d) of combined distributions.
+        """
+        # Base denoiser proposal
+        p_base = self.base.predict(x_masked, rng=rng)
+
+        # TN marginal
+        q, _, status = self.backend.marginals(x_masked)
+        if status == "contradiction":
+            q = np.full((self.n, self.d), 1.0 / self.d, dtype=np.float64)
+
+        # Product-of-experts
+        from tdr.diffusion.poe import product_of_experts
+        return product_of_experts(p_base, q, beta=self.beta)

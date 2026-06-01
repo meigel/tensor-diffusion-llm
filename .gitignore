@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+.env
+.venv
+venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Results
+results/logs/*
+results/plots/*
+results/checkpoints/*
+!results/.gitkeep
+
+# OS
+.DS_Store

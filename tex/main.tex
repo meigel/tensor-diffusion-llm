@@ -80,6 +80,10 @@ Our key contributions are:
 
 \textbf{Masked diffusion models.} MDLMs~\cite{austin2021structured,chang2022masked,savinov2021step} generate discrete sequences by iterative unmasking. The mask policy --- which positions to fill at each step --- is an active research topic~\cite{ou2024mdlm}. Our contribution is orthogonal: we augment the policy with verifier feedback, allowing it to repair observed positions that violate constraints.
 
+Recent work has independently explored remasking for discrete diffusion. ReMDM~\cite{remdm2025} identifies the same failure mode --- once generated, tokens cannot be revised --- and proposes remasking samplers for iterative refinement. RemeDi~\cite{remedi2025} learns quality scores to identify and remask low-confidence tokens. PRISM~\cite{prism2025} adds plug-in self-correction via learned per-token quality scores without external verifiers. Prism TTS~\cite{prismtts} uses self-verification and search for inference-time correction. CodeDiffuSe~\cite{codediffuse} applies syntax and type checks for error-aware remasking in code generation.
+
+Our work differs from all of these in a specific way: we use an \emph{external symbolic verifier} that returns \emph{localized constraint residuals} --- per-position scores indicating which variables participate in violated constraints --- to directly select observed tokens for remasking. Unlike confidence-based or learned quality scores, verifier residuals are semantically grounded: they identify not just that something is wrong, but \emph{where}. We experimentally isolate this contribution by showing that random remasking of the same cardinality is substantially worse, and that the benefit holds across multiple denoiser types.
+
 \textbf{Neuro-symbolic reasoning.} Combining neural networks with symbolic verifiers has a long history~\cite{garcez2019neurosymbolic,manhaeve2018deepproblog}. Our approach is closest to inference-time correction, where a verifier checks outputs and triggers repair. Unlike methods that train with logical losses, our verifier is purely symbolic and requires no gradient propagation.
 
 \textbf{Tensor-network inference.} Tensor networks provide compact factor-graph inference for discrete CSPs~\cite{glasser2020lattice,stoudenmire2016supervised}. We use exact contraction (variable elimination via einsum) to compute logical marginals, which serve as the denoising distribution. The key finding is that the verifier---not the marginal computation---is the decisive component for repair.
@@ -344,6 +348,26 @@ A.~d'Avila~Garcez, M.~Gori, L.~C.~Lamb, L.~Serafini, M.~Sprechmann, and A.~Zaver
 R.~Manhaeve, S.~Dumancic, A.~Kimmig, T.~Demeester, and L.~De~Raedt.
 \newblock DeepProbLog: Neural probabilistic logic programming.
 \newblock In {\em NeurIPS}, 2018.
+
+\bibitem{remdm2025}
+\newblock Remasking discrete diffusion models with inference-time scaling.
+\newblock {\em arXiv:2503.00307}, 2025.
+
+\bibitem{remedi2025}
+\newblock Don't settle too early: Remasking discrete diffusion via learned quality scores.
+\newblock {\em arXiv:2509.23653}, 2025.
+
+\bibitem{prism2025}
+\newblock Fine-tuning masked diffusion for provable self-correction.
+\newblock {\em arXiv:2510.01384}, 2025.
+
+\bibitem{prismtts}
+\newblock Prism: Efficient test-time scaling via hierarchical search and self-verification.
+\newblock {\em arXiv:2602.01842}, 2025.
+
+\bibitem{codediffuse}
+\newblock CodeDiffuSe: Syntax-guided error correction for code diffusion models.
+\newblock {\em arXiv}, 2025.
 
 \end{thebibliography}
 

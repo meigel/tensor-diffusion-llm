@@ -1,9 +1,12 @@
-"""
-Train a small MLP denoiser on masked completion data.
+"""\
+Train a small denoiser on masked completion data.
+
+Supports MLP and transformer MDLM architectures.
 
 Usage:
     python -m tdr.training.train_denoiser --domain sudoku --epochs 50
     python -m tdr.training.train_denoiser --domain sat --n-vars 20 --n-clauses 60 --epochs 50
+    python -m tdr.training.train_denoiser --domain json --model mdlm --epochs 30
 """
 
 import argparse
@@ -19,8 +22,13 @@ import torch.optim as optim
 from tdr import MASK
 from tdr.domains.sudoku4 import Sudoku4Domain
 from tdr.domains.boolsat import BoolSatDomain
+from tdr.domains.json_schema import JsonSchemaDomain
 from tdr.training.datasets import DenoisingDataset, compute_denoising_accuracy
 from tdr.diffusion.denoisers import LearnedDenoiser
+from tdr.diffusion.transformer_mdlm import (
+    TransformerDenoiserModel,
+    MDLMTransformerDenoiser,
+)
 from tdr.diffusion.sampler import MaskedDiffusionSampler
 from tdr.policies.entropy_policy import ConfidenceUnmaskPolicy
 from tdr.policies.verifier_policy import VerifierRepairPolicy
@@ -93,13 +101,22 @@ def evaluate(model, domain, num_samples=500, mask_ratio=0.5, device="cpu"):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--domain", choices=["sudoku", "sat"], default="sudoku")
+    parser.add_argument("--domain", choices=["sudoku", "sat", "json"], default="sudoku")
+    parser.add_argument("--model", choices=["mlp", "mdlm"], default="mlp",
+                        help="Denoiser architecture: mlp (flat) or mdlm (transformer)")
     parser.add_argument("--epochs", type=int, default=50)
     parser.add_argument("--batch-size", type=int, default=64)
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--train-samples", type=int, default=20000)
     parser.add_argument("--mask-ratio", type=float, default=0.5)
-    parser.add_argument("--hidden", type=int, nargs="+", default=[256, 256])
+    parser.add_argument("--hidden", type=int, nargs="+", default=[256, 256],
+                        help="MLP hidden dims (only used with --model mlp)")
+    parser.add_argument("--embed-dim", type=int, default=128,
+                        help="Transformer embedding dim (only used with --model mdlm)")
+    parser.add_argument("--nhead", type=int, default=4,
+                        help="Transformer attention heads (only used with --model mdlm)")
+    parser.add_argument("--num-layers", type=int, default=3,
+                        help="Transformer encoder layers (only used with --model mdlm)")
     parser.add_argument("--n-vars", type=int, default=20)
     parser.add_argument("--n-clauses", type=int, default=60)
     parser.add_argument("--device", default="cpu")
@@ -111,6 +128,9 @@ def main():
     if args.domain == "sudoku":
         domain = Sudoku4Domain()
         n, d = 16, 4
+    elif args.domain == "json":
+        domain = JsonSchemaDomain()
+        n, d = domain.num_variables(), domain.max_domain_size()
     else:
         domain = BoolSatDomain(n_vars=args.n_vars, n_clauses=args.n_clauses, k=3, formula_seed=0)
         n, d = args.n_vars, 2
@@ -119,7 +139,26 @@ def main():
     output_dim = n * d
 
     print(f"Domain: {args.domain}, n={n}, d={d}")
-    print(f"Model: MLP {input_dim} -> {args.hidden} -> {output_dim}")
+    print(f"Model: {args.model}", end="")
+
+    # Model
+    if args.model == "mdlm":
+        model = TransformerDenoiserModel(
+            n=n, d=d,
+            embed_dim=args.embed_dim,
+            nhead=args.nhead,
+            num_layers=args.num_layers,
+            dim_feedforward=args.embed_dim * 4,
+        ).to(device)
+        print(f" Transformer(embed_dim={args.embed_dim}, nhead={args.nhead}, "
+              f"layers={args.num_layers})")
+        denoiser_cls = MDLMTransformerDenoiser
+        checkpoint_suffix = "mdlm"
+    else:
+        model = MLPDenoiser(input_dim, output_dim, args.hidden).to(device)
+        print(f" MLP {input_dim} -> {args.hidden} -> {output_dim}")
+        denoiser_cls = LearnedDenoiser
+        checkpoint_suffix = args.domain
 
     # Data
     train_dataset = DenoisingDataset(domain, args.train_samples, args.mask_ratio, rng_seed=0)
@@ -127,8 +166,7 @@ def main():
     val_dataset = DenoisingDataset(domain, 2000, args.mask_ratio, rng_seed=999)
     val_loader = val_dataset.get_dataloader(args.batch_size, shuffle=False)
 
-    # Model
-    model = MLPDenoiser(input_dim, output_dim, args.hidden).to(device)
+    # Optimizer
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
     criterion = nn.CrossEntropyLoss()
 
@@ -145,14 +183,14 @@ def main():
             best_acc = val_acc
 
     # Save checkpoint
-    checkpoint_path = CHECKPOINT_DIR / f"denoiser_{args.domain}.pt"
+    checkpoint_path = CHECKPOINT_DIR / f"denoiser_{checkpoint_suffix}_{args.domain}.pt"
     torch.save(model.state_dict(), checkpoint_path)
     print(f"\nBest val_acc: {best_acc:.4f}")
     print(f"Saved: {checkpoint_path}")
 
     # Quick repair evaluation
     print("\n=== Repair evaluation ===")
-    learned = LearnedDenoiser(model, n, d)
+    learned = denoiser_cls(model, n, d)
     for wr in [0.0, 0.1, 0.2]:
         for use_repair in [False, True]:
             policy = VerifierRepairPolicy(remask_threshold=1) if use_repair else ConfidenceUnmaskPolicy(threshold=0.99)

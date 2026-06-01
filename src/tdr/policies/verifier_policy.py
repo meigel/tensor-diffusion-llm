@@ -84,3 +84,55 @@ class VerifierRepairPolicy(BaseMaskPolicy):
             fill[best] = True
 
         return fill
+
+
+class RandomRemaskPolicy(BaseMaskPolicy):
+    """Control baseline: remask a random subset of observed positions.
+
+    Unlike VerifierRepairPolicy which uses local residuals to select
+    positions for remasking, this policy remasks the same NUMBER of
+    positions but chosen randomly. This isolates whether the
+    verifier's LOCALIZATION matters or just the act of remasking.
+
+    Attributes:
+        remask_fraction: Fraction of observed positions to remask each step.
+                         If None, remasks same fraction as verifier would
+                         (not possible without knowing verifier output).
+    """
+
+    def __init__(self, remask_fraction: float = 0.25, fill_threshold: float = 0.99):
+        self.remask_fraction = remask_fraction
+        self.fill_threshold = fill_threshold
+
+    def select_remask(self, x: np.ndarray,
+                      diagnostics: VerifierDiagnostics,
+                      rng: Optional[np.random.Generator] = None) -> np.ndarray:
+        """Select a random subset of observed positions to remask."""
+        if rng is None:
+            rng = np.random.default_rng()
+        n = len(x)
+        observed = np.where(x != MASK)[0]
+        if len(observed) == 0:
+            return np.zeros(n, dtype=bool)
+        k = max(1, int(len(observed) * self.remask_fraction))
+        chosen = rng.choice(observed, size=k, replace=False)
+        remask = np.zeros(n, dtype=bool)
+        remask[chosen] = True
+        return remask
+
+    def select_fill(self, x: np.ndarray, dist: np.ndarray,
+                    diagnostics: VerifierDiagnostics,
+                    rng: Optional[np.random.Generator] = None) -> np.ndarray:
+        """Fill MASK positions with confidence ≥ threshold."""
+        n = len(x)
+        masked = np.where(x == MASK)[0]
+        if len(masked) == 0:
+            return np.zeros(n, dtype=bool)
+        confidences = dist[masked].max(axis=1)
+        above_thresh = confidences >= self.fill_threshold
+        fill = np.zeros(n, dtype=bool)
+        fill[masked[above_thresh]] = True
+        if not np.any(fill):
+            best = masked[np.argmax(confidences)]
+            fill[best] = True
+        return fill

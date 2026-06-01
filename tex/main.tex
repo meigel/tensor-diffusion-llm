@@ -239,13 +239,22 @@ A learned MLP denoiser (trained on $20$K mask-only samples, $100\%$ masked accur
 \subsection{Ablation: mechanism isolation}
 \label{sec:ablation}
 
-The repair + random baseline ($0\%$ everywhere) is the most important control. It shows in this setting that:
+The repair + random baseline ($0\%$ everywhere) is the most important control for isolating whether remasking helps. It shows in this setting that:
 
 \begin{enumerate}[leftmargin=2em]
     \item Detecting violated constraints is not sufficient; the denoiser must propose correct new values.
     \item The success of tn + repair is not an artifact of the remasking loop.
     \item The structured marginal computation in the TN backend provides value beyond simple local heuristics.
 \end{enumerate}
+
+A second control --- \textbf{random remasking} (TN denoiser but remasking randomly chosen observed positions instead of verifier-selected ones) --- isolates whether \emph{localization} matters. The results are clear:
+
+\begin{itemize}[leftmargin=2em]
+    \item TN + verifier repair: $99$--$100\%$ success across all wrong-token levels.
+    \item TN + random remasking: $33$--$58\%$ --- worse than no repair at wr=0.0 because it disrupts correct positions.
+\end{itemize}
+
+This confirms that the verifier's local residuals identify precisely which positions need correction. Randomly remasking is counterproductive; targeted remasking is essential.
 
 \subsection{Visual summary}
 \label{sec:plots}

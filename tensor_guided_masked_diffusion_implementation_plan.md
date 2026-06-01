@@ -1,5 +1,25 @@
 # Implementation Plan: Tensor-Guided Masked Diffusion for Logical Sequence Reasoning
 
+> **Status update (June 2026):** This document is the original implementation roadmap.
+> The project has evolved significantly since it was written. Key pivots:
+> 
+> - **Core contribution shifted** from TN-centric to **verifier-guided remasking (VGR)**.
+>   TN marginals are now an implementation detail, not the star.
+> - **Multi-domain validation** added: Sudoku (4×4), planted 3-SAT (n=20, m=60), and
+>   **JSON schema repair** (7-field user profile with cross-field constraints).
+> - **Learned denoisers** implemented: MLP (256→256) and **transformer MDLM**
+>   (3-layer bidirectional encoder, 128-dim, 4-head).
+> - **Mechanism-isolating controls** (repair + random → 0%) prove that remasking
+>   alone doesn't help — verifier localization is essential.
+> - **5 competing works** identified (2025): ReMDM, RemeDi, PRISM, Prism TTS,
+>   CodeDiffuSe. Differentiator: localized constraint residuals.
+> - **Conference paper draft** at `tex/main.tex` (7 pages, clean pdflatex build).
+>
+> See the [README](README.md) for up-to-date results and the
+> [paper improvement plan](paper_improvement_plan.md) for the Codex 5.5 strategy.
+>
+> ---
+
 This document gives a staged implementation roadmap for combining **masked diffusion-style denoising**, **logical tensor-network reasoning**, and **TT-based adaptive mask policies**, starting with `tnreason` and `tinyTT`.
 
 The plan is structured so that useful results can be obtained before integrating a real diffusion LLM.

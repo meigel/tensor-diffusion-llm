@@ -41,7 +41,7 @@
 \maketitle
 
 \begin{abstract}
-Masked diffusion models generate sequences by iterative denoising, making them natural candidates for globally constrained generation tasks such as program repair, theorem proving, and structured reasoning. However, standard masked diffusion assumes that observed tokens are always correct. When a state contains wrong tokens --- whether from an imperfect base model, previous erroneous predictions, or noisy observations --- the denoising process has no mechanism to correct them. We propose \textbf{verifier-guided remasking}, a simple modification that closes this gap. At each diffusion step, a symbolic verifier identifies inconsistent positions via local constraint residuals $r_i(x)$; these positions are temporarily returned to the masked state, allowing the denoiser to propose corrections. On $4\times4$ Sudoku with up to 30\% wrong tokens, verifier-guided remasking achieves $98$--$100\%$ completion versus $8$--$14\%$ for standard masked diffusion. On planted $3$-SAT with $50$ different random formulas, the repair mechanism maintains $74$--$86\%$ success versus $18$--$26\%$ without repair. Crucially, a control baseline that remasks randomly but fills randomly achieves $0\%$ --- proving that the repair mechanism alone is insufficient without a structured denoiser. The framework is domain-agnostic: the same verifier interface supports both Sudoku constraints and SAT clause satisfaction.
+Masked diffusion models generate sequences by iterative denoising, making them natural candidates for globally constrained generation tasks such as program repair, theorem proving, and structured reasoning. However, standard masked diffusion assumes that observed tokens are always correct. When a state contains wrong tokens --- whether from an imperfect base model, previous erroneous predictions, or noisy observations --- the denoising process has no mechanism to correct them. We propose \textbf{verifier-guided remasking}, a simple modification that closes this gap. At each diffusion step, a symbolic verifier identifies inconsistent positions via local constraint residuals $r_i(x)$; these positions are temporarily returned to the masked state, allowing the denoiser to propose corrections. On $4\times4$ Sudoku with up to 30\% wrong tokens, verifier-guided remasking achieves $98$--$100\%$ completion versus $8$--$14\%$ for standard masked diffusion. On planted $3$-SAT with $50$ different random formulas, the repair mechanism maintains $74$--$86\%$ success versus $18$--$26\%$ without repair. Crucially, a control that uses verifier-guided remasking but fills with a random denoiser achieves $0\%$ --- showing in this setting that the repair mechanism alone is insufficient without a structured denoiser. The framework applies to any domain with a verifier that produces localizable constraint residuals: we demonstrate it on both Sudoku (all-different constraints) and SAT (clause satisfaction).
 \end{abstract}
 
 % ==============================================================================
@@ -62,14 +62,14 @@ We propose a simple remedy: \textbf{verifier-guided remasking}. At each diffusio
 
 where $\cG$ is the set of constraint groups (e.g.\ rows, columns, boxes for Sudoku; clauses for SAT). Positions with $r_i(x) > 0$ are candidates for remasking: they are returned to $\Mask$, and the denoiser proposes new values on the next step.
 
-This mechanism is domain-agnostic. We evaluate it on two structurally different domains: $4\times4$ Sudoku (all-different constraints over $16$ variables, $12$ groups) and planted $3$-SAT (random $20$-variable formulas with $60$ clause factors). In both cases, verifier-guided remasking dramatically improves robustness to wrong tokens.
+This mechanism applies to any domain with a verifier that produces localizable constraint residuals. We evaluate it on two structurally different domains: $4\times4$ Sudoku (all-different constraints over $16$ variables, $12$ groups) and planted $3$-SAT (random $20$-variable formulas with $60$ clause factors). In both cases, verifier-guided remasking dramatically improves robustness to wrong tokens.
 
 Our key contributions are:
 \begin{itemize}[leftmargin=2em]
     \item Identifying a fundamental failure mode of masked diffusion: wrong observed tokens cause irreversible contamination.
     \item Proposing verifier-guided remasking as a domain-agnostic remedy, requiring only a verifier producing local residuals.
     \item Demonstrating $98$--$100\%$ repair success on Sudoku and $74$--$86\%$ on SAT under high wrong-token ratios, versus $8$--$26\%$ without repair.
-    \item Isolating the mechanism via a control baseline (random remasking + random filling = $0\%$), proving that structured denoising is essential.
+    \item Introducing mechanism-isolating controls showing that verifier remasking alone is insufficient: success requires a denoiser with useful constraint information.
     \item Validating on $50$ different random SAT formulas to ensure results generalize beyond a single instance.
 \end{itemize}
 
@@ -234,7 +234,7 @@ SAT is harder than Sudoku: even with repair, success drops to $74\%$ at wr=0.30 
 \subsection{Ablation: mechanism isolation}
 \label{sec:ablation}
 
-The repair + random baseline ($0\%$ everywhere) is the most important control. It proves that:
+The repair + random baseline ($0\%$ everywhere) is the most important control. It shows in this setting that:
 
 \begin{enumerate}[leftmargin=2em]
     \item Detecting violated constraints is not sufficient; the denoiser must propose correct new values.
@@ -270,7 +270,7 @@ Figure~\ref{fig:sudoku_plot} shows success rate and step count versus wrong-toke
 
 Verifier-guided remasking is a general mechanism that applies to any domain with a symbolic verifier producing local residuals. However, several limitations should be noted.
 
-\textbf{Exact inference cost.} Our contraction backend requires enumerating all constraint factors and performing variable elimination. For SAT with $60$ clauses of width $3$, this is fast, but scaling to $n > 50$ variables may require approximate tensor-network methods or factor-graph-specific solvers.
+\textbf{Exact inference cost.} Our contraction backend uses naive variable elimination with a natural elimination order, which is efficient for small structured domains (Sudoku: $0.1$ms per marginal; SAT $n=20$: $60$ms) but grows rapidly: SAT $n=30$ already times out due to large intermediate factors. This is acceptable for our controlled study --- we deliberately use exact marginals as an oracle denoiser to isolate the verifier contribution --- but approximate tensor-network methods or better elimination orders would be needed for larger instances.
 
 \textbf{Verifier dependence.} The repair quality depends directly on the verifier's ability to localize errors. For Sudoku, local residuals cleanly identify which positions participate in violated groups. For domains where errors are distributed differently (e.g.\ semantic errors in text), a coarser verifier may reduce repair effectiveness.
 

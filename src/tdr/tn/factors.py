@@ -128,10 +128,10 @@ def join_factors(factors: list[Factor]) -> Factor:
                 seen.add(v)
                 all_vars.append(v)
 
-    # Build einsum equation: each factor's variables get a lowercase letter
-    # Use 'a' through 'z' (enough for 26 variables — fine for small domains)
+    # Build einsum equation: each factor's variables get a letter
+    # Use lowercase a-z, then uppercase A-Z (52 letters total)
     import string
-    letters = string.ascii_lowercase
+    letters = string.ascii_lowercase + string.ascii_uppercase
     if len(all_vars) > len(letters):
         raise ValueError(f"Too many variables ({len(all_vars)}) for einsum letters")
 

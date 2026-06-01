@@ -135,6 +135,9 @@ class Sudoku4Domain(FiniteReasoningDomain):
         idx = rng.integers(len(solutions))
         return solutions[idx].copy()
 
+    def enumerate_solutions(self) -> np.ndarray:
+        return self._get_solutions().copy()
+
     # ------------------------------------------------------------------
     # Verifier
     # ------------------------------------------------------------------
@@ -145,7 +148,19 @@ class Sudoku4Domain(FiniteReasoningDomain):
         value (Option B: soft partial violation from the plan).
 
         Local residual r_i = number of violated groups containing variable i.
+
+        Raises ValueError if x has wrong shape or values outside the domain.
         """
+        if x.shape != (self.N,):
+            raise ValueError(
+                f"Expected shape ({self.N},), got {x.shape}"
+            )
+        if not np.all((x == MASK) | ((x >= 0) & (x < self.D))):
+            raise ValueError(
+                f"Values must be MASK={MASK} or in [0, {self.D - 1}], "
+                f"got {set(x[x != MASK].tolist()) - set(range(self.D))}"
+            )
+
         n = self.N
         global_violation = 0
         local_residuals = np.zeros(n, dtype=np.int64)

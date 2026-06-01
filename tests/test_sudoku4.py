@@ -3,6 +3,7 @@ Tests for Sudoku4 domain: solutions, verifier, corruption.
 """
 
 import numpy as np
+import pytest
 
 from tdr import MASK
 from tdr.domains.sudoku4 import Sudoku4Domain
@@ -19,15 +20,25 @@ class TestSudoku4Domain:
         for i in range(16):
             assert self.domain.domain_size(i) == 4
 
-    def test_solutions_generated(self):
-        sols = self.domain._get_solutions()
-        assert len(sols) > 0, "Should generate at least one solution"
-        # Check all values in {0,1,2,3}
-        assert np.all((sols >= 0) & (sols <= 3))
-        # Check no solution violates constraints
-        for sol in sols:
+    def test_solutions_count(self):
+        """4x4 Sudoku has exactly 288 unique solutions."""
+        sols = self.domain.enumerate_solutions()
+        assert len(sols) == 288, f"Expected 288 solutions, got {len(sols)}"
+        assert sols.shape == (288, 16)
+
+    def test_solutions_uniqueness(self):
+        """All solutions should be unique."""
+        sols = self.domain.enumerate_solutions()
+        unique = {tuple(s) for s in sols}
+        assert len(unique) == 288
+
+    def test_solutions_valid(self):
+        """Every generated solution should pass the verifier."""
+        sols = self.domain.enumerate_solutions()
+        for i, sol in enumerate(sols):
+            assert np.all((sol >= 0) & (sol <= 3)), f"Solution {i} has invalid values"
             diag = self.domain.verifier(sol)
-            assert diag.global_violation == 0, f"Solution violates constraints: {sol}"
+            assert diag.global_violation == 0, f"Solution {i} violates constraints: {sol}"
 
     def test_sample_solution(self):
         rng = np.random.default_rng(42)
@@ -49,42 +60,59 @@ class TestSudoku4Domain:
         assert np.all(x_masked[observed] == sol[observed])
 
     def test_verifier_valid(self):
-        # A known valid solution should have 0 violations
         sol = self.domain.puzzle_full()
         diag = self.domain.verifier(sol)
         assert diag.global_violation == 0
         assert np.all(diag.local_residuals == 0)
 
     def test_verifier_violation(self):
-        # A row with duplicate values should be violated
         x = self.domain.puzzle_full().copy()
-        # Make row 0 have two 1s
-        x[0] = 0  # value 1
-        x[2] = 0  # should also be value 1 in row 0 → duplicate
+        # Make row 0 have duplicate value 1 at positions 0 and 2
+        x[0] = 0
+        x[2] = 0
         diag = self.domain.verifier(x)
         assert diag.global_violation > 0
-        # At least the first two positions in row 0 should have positive residuals
         assert diag.local_residuals[0] > 0
         assert diag.local_residuals[2] > 0
 
+    def test_verifier_invalid_values_raises(self):
+        """Verifier should reject out-of-domain values."""
+        x = np.full(16, MASK, dtype=np.int64)
+        x[0] = 99
+        with pytest.raises(ValueError, match="Values must be MASK"):
+            self.domain.verifier(x)
+
+    def test_verifier_wrong_shape_raises(self):
+        with pytest.raises(ValueError, match="Expected shape"):
+            self.domain.verifier(np.ones(20, dtype=np.int64))
+
     def test_puzzle_easy(self):
         x = self.domain.puzzle_easy()
-        assert np.sum(x == MASK) == 12  # 4 observed, 12 masked
+        assert np.sum(x == MASK) == 12
         assert np.sum(x != MASK) == 4
 
+    def test_puzzle_easy_no_violation(self):
+        """The example puzzle has no soft violations (values are distinct)."""
+        x = self.domain.puzzle_easy()
+        diag = self.domain.verifier(x)
+        assert diag.global_violation == 0
+
     def test_verifier_masked_no_violation(self):
-        """Masked positions should not cause violations."""
         x = np.full(16, MASK, dtype=np.int64)
         diag = self.domain.verifier(x)
         assert diag.global_violation == 0
         assert np.all(diag.local_residuals == 0)
 
     def test_verifier_soft_violation(self):
-        """Two observed same values in a group → violation."""
         x = np.full(16, MASK, dtype=np.int64)
-        x[0] = 0  # row 0, col 0: value 1
-        x[1] = 0  # row 0, col 1: also value 1 → row 0 violated
+        x[0] = 0
+        x[1] = 0  # same value in row 0, col 1 → row 0 violated
         diag = self.domain.verifier(x)
         assert diag.global_violation >= 1
         assert diag.local_residuals[0] >= 1
         assert diag.local_residuals[1] >= 1
+
+    def test_enumerate_solutions_public_method(self):
+        """enumerate_solutions should be accessible via the public protocol."""
+        sols = self.domain.enumerate_solutions()
+        assert len(sols) == 288

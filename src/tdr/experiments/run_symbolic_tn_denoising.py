@@ -73,7 +73,8 @@ def run_trial(
         "num_masks_final": int(np.sum(final_x == MASK)),
         "final_x": final_x.tolist(),
         "history": [
-            {k: int(v) if isinstance(v, (np.integer, bool)) else v
+            {k: (v.tolist() if isinstance(v, np.ndarray) else
+                 int(v) if isinstance(v, (np.integer, bool)) else v)
              for k, v in h.items()}
             for h in result.history
         ],

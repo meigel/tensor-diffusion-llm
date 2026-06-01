@@ -29,16 +29,7 @@ class BruteForceMarginalBackend:
 
     def _get_solutions(self) -> np.ndarray:
         if self._solutions is None:
-            # Use the domain's own solution generator if available
-            if hasattr(self.domain, '_get_solutions'):
-                self._solutions = self.domain._get_solutions()
-            elif hasattr(self.domain, 'sample_solution'):
-                raise RuntimeError(
-                    "Domain has sample_solution but not _get_solutions. "
-                    "BruteForceMarginalBackend needs the full solution set."
-                )
-            else:
-                raise RuntimeError("Domain does not provide solutions.")
+            self._solutions = self.domain.enumerate_solutions()
         return self._solutions
 
     def marginals(self, x_masked: np.ndarray):

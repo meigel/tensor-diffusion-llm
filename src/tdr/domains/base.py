@@ -63,6 +63,14 @@ class FiniteReasoningDomain:
         """Return list of Factor objects for tensor-network or brute-force inference."""
         raise NotImplementedError
 
+    def enumerate_solutions(self) -> np.ndarray:
+        """Return all valid full assignments as a (num_solutions, num_variables) array.
+
+        Subclasses with enumerable solution spaces should override this.
+        The base class raises NotImplementedError.
+        """
+        raise NotImplementedError
+
 
 @dataclass
 class Factor:

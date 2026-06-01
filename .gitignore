@@ -24,3 +24,4 @@ results/checkpoints/*
 
 # OS
 .DS_Store
+src/results/

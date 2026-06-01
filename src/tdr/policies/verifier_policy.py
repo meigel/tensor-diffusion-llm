@@ -136,3 +136,52 @@ class RandomRemaskPolicy(BaseMaskPolicy):
             best = masked[np.argmax(confidences)]
             fill[best] = True
         return fill
+
+
+class ConfidenceRemaskPolicy(BaseMaskPolicy):
+    """Baseline: remask positions where denoiser confidence is below a threshold.
+
+    Unlike VerifierRepairPolicy which uses constraint residuals, this policy
+    uses the denoiser's OWN uncertainty to decide what to remask.
+    This is the standard approach in ReMDM-style remasking.
+    """
+
+    def __init__(self, remask_threshold: float = 0.5, fill_threshold: float = 0.99):
+        self.remask_threshold = remask_threshold
+        self.fill_threshold = fill_threshold
+
+    def select_remask(self, x: np.ndarray,
+                      diagnostics: VerifierDiagnostics,
+                      rng: Optional[np.random.Generator] = None) -> np.ndarray:
+        """No pre-denoising remask (need denoiser output first)."""
+        return np.zeros(len(x), dtype=bool)
+
+    def select_fill(self, x: np.ndarray, dist: np.ndarray,
+                    diagnostics: VerifierDiagnostics,
+                    rng: Optional[np.random.Generator] = None) -> np.ndarray:
+        """After filling, also track low-confidence filled positions for next step."""
+        return x == MASK  # Default: fill all masked positions, remask happens via separate pass
+
+
+class ConfidenceFillThenRemask(BaseMaskPolicy):
+    """Two-phase: fill high-confidence positions, then remask low-confidence ones.
+
+    This matches the ReMDM-style approach: fill confident positions, then
+    remask positions where confidence was low.
+    """
+
+    def __init__(self, fill_threshold: float = 0.99, remask_low_threshold: float = 0.5):
+        self.fill_threshold = fill_threshold
+        self.remask_low_threshold = remask_low_threshold
+
+    def select_remask(self, x: np.ndarray,
+                      diagnostics: VerifierDiagnostics,
+                      rng: Optional[np.random.Generator] = None) -> np.ndarray:
+        """No remasking before denoising."""
+        return np.zeros(len(x), dtype=bool)
+
+    def select_fill(self, x: np.ndarray, dist: np.ndarray,
+                    diagnostics: VerifierDiagnostics,
+                    rng: Optional[np.random.Generator] = None) -> np.ndarray:
+        """Fill all masked positions."""
+        return x == MASK

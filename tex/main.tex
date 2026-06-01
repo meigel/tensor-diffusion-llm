@@ -183,20 +183,21 @@ Methods compared:
 
 \begin{table}[ht]
 \centering
-\caption{Success rate on $4\times4$ Sudoku with mixed corruption ($50\%$ masking, $n=50$). Standard errors in parentheses.}
+\caption{Success rate on $4\times4$ Sudoku with mixed corruption ($50\%$ masking, $n=200$). Standard errors in parentheses.}
 \label{tab:sudoku}
 \begin{tabular}{lccccc}
 \toprule
 Method & wr=0.00 & wr=0.05 & wr=0.10 & wr=0.20 & wr=0.30 \\
 \midrule
-Local      & 1.00 (—)   & 0.60 (.07) & 0.38 (.07) & 0.14 (.05) & 0.08 (.04) \\
-TN         & 1.00 (—)   & 0.60 (.07) & 0.38 (.07) & 0.14 (.05) & 0.08 (.04) \\
-PoE        & 1.00 (—)   & 0.60 (.07) & 0.38 (.07) & 0.14 (.05) & 0.08 (.04) \\
+Local      & 1.00 (—)   & 0.57 (.04) & 0.37 (.03) & 0.15 (.03) & 0.08 (.02) \\
+TN         & 1.00 (—)   & 0.57 (.04) & 0.37 (.03) & 0.15 (.03) & 0.08 (.02) \\
 \midrule
 repair + random & 0.00 (—) & 0.00 (—)   & 0.00 (—)   & 0.00 (—)   & 0.00 (—)   \\
-repair + local  & 1.00 (—) & 0.94 (.03) & 0.92 (.04) & 0.96 (.03) & 0.98 (.02) \\
-\textbf{tn + repair}  & \textbf{1.00} (—) & \textbf{0.98 (.02)} & \textbf{0.98 (.02)} & \textbf{1.00} (—) & \textbf{1.00} (—) \\
-PoE + repair & 1.00 (—) & 0.94 (.03) & 0.96 (.03) & 1.00 (—)   & 1.00 (—) \\
+repair + local  & 1.00 (—) & 0.95 (.02) & 0.95 (.02) & 0.96 (.01) & 0.98 (.01) \\
+\textbf{tn + repair}  & \textbf{1.00} (—) & \textbf{0.99 (.01)} & \textbf{0.99 (.01)} & \textbf{1.00} (—) & \textbf{1.00} (—) \\
+\midrule
+Learned    & 1.00 (—)   & 0.57 (.04) & 0.38 (.03) & 0.14 (.03) & 0.08 (.02) \\
+\textbf{Learned + repair} & \textbf{1.00} (—) & \textbf{0.96 (.02)} & \textbf{0.98 (.01)} & \textbf{1.00} (—) & \textbf{1.00} (—) \\
 \bottomrule
 \end{tabular}
 \end{table}

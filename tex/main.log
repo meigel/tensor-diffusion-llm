@@ -1,9 +1,9 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.29 (TeX Live 2026) (preloaded format=pdflatex 2026.6.1)  1 JUN 2026 21:50
+This is pdfTeX, Version 3.141592653-2.6-1.40.29 (TeX Live 2026) (preloaded format=pdflatex 2026.6.1)  2 JUN 2026 11:09
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
-**main.tex
-(./main.tex
+**tex/main.tex
+(./tex/main.tex
 LaTeX2e <2025-11-01>
 L3 programming layer <2026-01-19>
 (/usr/local/texlive/2026basic/texmf-dist/tex/latex/base/article.cls
@@ -384,27 +384,27 @@ LaTeX Info: Redefining \cite on input line 694.
 ef
 File: l3backend-pdftex.def 2025-10-09 L3 backend support: PDF output (pdfTeX)
 \l__color_backend_stack_int=\count329
-) (./main.aux)
+) (tex/main.aux)
 \openout1 = `main.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 39.
-LaTeX Font Info:    ... okay on input line 39.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 39.
-LaTeX Font Info:    ... okay on input line 39.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 39.
-LaTeX Font Info:    ... okay on input line 39.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 39.
-LaTeX Font Info:    ... okay on input line 39.
-LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 39.
-LaTeX Font Info:    ... okay on input line 39.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 39.
-LaTeX Font Info:    ... okay on input line 39.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 39.
-LaTeX Font Info:    ... okay on input line 39.
-LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 39.
-LaTeX Font Info:    ... okay on input line 39.
-LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 39.
-LaTeX Font Info:    ... okay on input line 39.
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 42.
+LaTeX Font Info:    ... okay on input line 42.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 42.
+LaTeX Font Info:    ... okay on input line 42.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 42.
+LaTeX Font Info:    ... okay on input line 42.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 42.
+LaTeX Font Info:    ... okay on input line 42.
+LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 42.
+LaTeX Font Info:    ... okay on input line 42.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 42.
+LaTeX Font Info:    ... okay on input line 42.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 42.
+LaTeX Font Info:    ... okay on input line 42.
+LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 42.
+LaTeX Font Info:    ... okay on input line 42.
+LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 42.
+LaTeX Font Info:    ... okay on input line 42.
 
 *geometry* driver: auto-detecting
 *geometry* detected driver: pdftex
@@ -440,8 +440,8 @@ LaTeX Font Info:    ... okay on input line 39.
 * \@reversemarginfalse
 * (1in=72.27pt=25.4mm, 1cm=28.453pt)
 
-Package hyperref Info: Link coloring OFF on input line 39.
-(./main.out) (./main.out)
+Package hyperref Info: Link coloring OFF on input line 42.
+(tex/main.out) (tex/main.out)
 \@outlinefile=\write3
 \openout3 = `main.out'.
 
@@ -477,12 +477,12 @@ G,.JBIG2,.JB2,.eps]
 File: epstopdf-sys.cfg 2010/07/13 v1.3 Configuration of (r)epstopdf for TeX Liv
 e
 ))
-LaTeX Font Info:    Trying to load font information for U+msa on input line 42.
+LaTeX Font Info:    Trying to load font information for U+msa on input line 45.
 
  (/usr/local/texlive/2026basic/texmf-dist/tex/latex/amsfonts/umsa.fd
 File: umsa.fd 2013/01/14 v3.01 AMS symbols A
 )
-LaTeX Font Info:    Trying to load font information for U+msb on input line 42.
+LaTeX Font Info:    Trying to load font information for U+msb on input line 45.
 
 
 (/usr/local/texlive/2026basic/texmf-dist/tex/latex/amsfonts/umsb.fd
@@ -492,73 +492,53 @@ File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 {/Users/eigel/Library/texlive/2026basic/texmf-var/fonts/map/pdftex/updmap/pdfte
 x.map}{/Users/eigel/Library/texmf/fonts/enc/dvips/cm-super/cm-super-ts1.enc}] [
 2]
-[3] [4]
-<../results/plots/sudoku4_success_vs_wrong.pdf, id=136, 433.62pt x 289.08pt>
-File: ../results/plots/sudoku4_success_vs_wrong.pdf Graphic file (type pdf)
-<use ../results/plots/sudoku4_success_vs_wrong.pdf>
-Package pdftex.def Info: ../results/plots/sudoku4_success_vs_wrong.pdf  used on
- input line 270.
-(pdftex.def)             Requested size: 232.17242pt x 154.78198pt.
-<../results/plots/sudoku4_steps_vs_wrong.pdf, id=137, 433.62pt x 289.08pt>
-File: ../results/plots/sudoku4_steps_vs_wrong.pdf Graphic file (type pdf)
-<use ../results/plots/sudoku4_steps_vs_wrong.pdf>
-Package pdftex.def Info: ../results/plots/sudoku4_steps_vs_wrong.pdf  used on i
-nput line 271.
-(pdftex.def)             Requested size: 232.17242pt x 154.78198pt.
- [5]
-<../results/plots/sat_success_vs_wrong.pdf, id=146, 433.62pt x 289.08pt>
-File: ../results/plots/sat_success_vs_wrong.pdf Graphic file (type pdf)
-<use ../results/plots/sat_success_vs_wrong.pdf>
-Package pdftex.def Info: ../results/plots/sat_success_vs_wrong.pdf  used on inp
-ut line 278.
-(pdftex.def)             Requested size: 232.17242pt x 154.78198pt.
-<../results/plots/sat_steps_vs_wrong.pdf, id=147, 433.62pt x 289.08pt>
-File: ../results/plots/sat_steps_vs_wrong.pdf Graphic file (type pdf)
-<use ../results/plots/sat_steps_vs_wrong.pdf>
-Package pdftex.def Info: ../results/plots/sat_steps_vs_wrong.pdf  used on input
- line 279.
-(pdftex.def)             Requested size: 232.17242pt x 154.78198pt.
- [6 <../results/plots/sudoku4_success_vs_wrong.pdf> <../results/plots/sudoku4_s
-teps_vs_wrong.pdf> <../results/plots/sat_success_vs_wrong.pdf> <../results/plot
-s/sat_steps_vs_wrong.pdf>] [7] (./main.aux)
+Overfull \hbox (20.49026pt too wide) in paragraph at lines 157--158
+\OT1/cmr/m/n/10.95 Corruption is mixed: we mask 30% of po-si-tions, then ad-ver
+-sar-i-ally cor-rupt a frac-tion $[] \OMS/cmsy/m/n/10.95 2 f\OT1/cmr/m/n/10.95 
+0\OML/cmm/m/it/10.95 :\OT1/cmr/m/n/10.95 0\OML/cmm/m/it/10.95 ; \OT1/cmr/m/n/10
+.95 0\OML/cmm/m/it/10.95 :\OT1/cmr/m/n/10.95 2\OML/cmm/m/it/10.95 ; \OT1/cmr/m/
+n/10.95 0\OML/cmm/m/it/10.95 :\OT1/cmr/m/n/10.95 4\OML/cmm/m/it/10.95 ; \OT1/cm
+r/m/n/10.95 0\OML/cmm/m/it/10.95 :\OT1/cmr/m/n/10.95 6\OMS/cmsy/m/n/10.95 g$
+ []
+
+[3] [4] [5] [6] (tex/main.aux)
  ***********
 LaTeX2e <2025-11-01>
 L3 programming layer <2026-01-19>
  ***********
+
+
+LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.
+
 Package rerunfilecheck Info: File `main.out' has not changed.
-(rerunfilecheck)             Checksum: 2AC08664A8004087082246442E784743;1893.
+(rerunfilecheck)             Checksum: F105687049F7E36D51BD939F8C8E56CD;2436.
  ) 
 Here is how much of TeX's memory you used:
- 12315 strings out of 469006
- 189396 string characters out of 5454814
- 617170 words of memory out of 5000000
- 40805 multiletter control sequences out of 15000+600000
- 639421 words of font info for 86 fonts, out of 8000000 for 9000
+ 12285 strings out of 469006
+ 187841 string characters out of 5454814
+ 615338 words of memory out of 5000000
+ 40779 multiletter control sequences out of 15000+600000
+ 638800 words of font info for 84 fonts, out of 8000000 for 9000
  319 hyphenation exceptions out of 8191
- 75i,8n,79p,1564b,578s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 75i,8n,79p,816b,582s stack positions out of 10000i,1000n,20000p,200000b,200000s
 </usr/local/texlive/2026basic/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx1
 0.pfb></usr/local/texlive/2026basic/texmf-dist/fonts/type1/public/amsfonts/cm/c
 mbx12.pfb></usr/local/texlive/2026basic/texmf-dist/fonts/type1/public/amsfonts/
-cm/cmex10.pfb></usr/local/texlive/2026basic/texmf-dist/fonts/type1/public/amsfo
-nts/cm/cmmi10.pfb></usr/local/texlive/2026basic/texmf-dist/fonts/type1/public/a
-msfonts/cm/cmmi6.pfb></usr/local/texlive/2026basic/texmf-dist/fonts/type1/publi
-c/amsfonts/cm/cmmi7.pfb></usr/local/texlive/2026basic/texmf-dist/fonts/type1/pu
-blic/amsfonts/cm/cmmi8.pfb></usr/local/texlive/2026basic/texmf-dist/fonts/type1
-/public/amsfonts/cm/cmr10.pfb></usr/local/texlive/2026basic/texmf-dist/fonts/ty
-pe1/public/amsfonts/cm/cmr12.pfb></usr/local/texlive/2026basic/texmf-dist/fonts
-/type1/public/amsfonts/cm/cmr17.pfb></usr/local/texlive/2026basic/texmf-dist/fo
-nts/type1/public/amsfonts/cm/cmr8.pfb></usr/local/texlive/2026basic/texmf-dist/
-fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/local/texlive/2026basic/texmf-d
-ist/fonts/type1/public/amsfonts/cm/cmsy6.pfb></usr/local/texlive/2026basic/texm
-f-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb></usr/local/texlive/2026basic/t
-exmf-dist/fonts/type1/public/amsfonts/cm/cmti10.pfb></usr/local/texlive/2026bas
-ic/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt10.pfb></usr/local/texlive/202
-6basic/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt12.pfb></Users/eigel/Libra
-ry/texmf/fonts/type1/public/cm-super/sfrm1095.pfb>
-Output written on main.pdf (7 pages, 294971 bytes).
+cm/cmmi10.pfb></usr/local/texlive/2026basic/texmf-dist/fonts/type1/public/amsfo
+nts/cm/cmmi7.pfb></usr/local/texlive/2026basic/texmf-dist/fonts/type1/public/am
+sfonts/cm/cmmi8.pfb></usr/local/texlive/2026basic/texmf-dist/fonts/type1/public
+/amsfonts/cm/cmr10.pfb></usr/local/texlive/2026basic/texmf-dist/fonts/type1/pub
+lic/amsfonts/cm/cmr12.pfb></usr/local/texlive/2026basic/texmf-dist/fonts/type1/
+public/amsfonts/cm/cmr17.pfb></usr/local/texlive/2026basic/texmf-dist/fonts/typ
+e1/public/amsfonts/cm/cmsy10.pfb></usr/local/texlive/2026basic/texmf-dist/fonts
+/type1/public/amsfonts/cm/cmti10.pfb></usr/local/texlive/2026basic/texmf-dist/f
+onts/type1/public/amsfonts/cm/cmtt10.pfb></usr/local/texlive/2026basic/texmf-di
+st/fonts/type1/public/amsfonts/cm/cmtt12.pfb></Users/eigel/Library/texmf/fonts/
+type1/public/cm-super/sfrm1095.pfb>
+Output written on tex/main.pdf (6 pages, 186584 bytes).
 PDF statistics:
- 424 PDF objects out of 1000 (max. 8388607)
- 221 compressed objects within 3 object streams
- 53 named destinations out of 1000 (max. 500000)
- 141 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 223 PDF objects out of 1000 (max. 8388607)
+ 187 compressed objects within 2 object streams
+ 50 named destinations out of 1000 (max. 500000)
+ 137 words of extra memory for PDF output out of 10000 (max. 10000000)
 
